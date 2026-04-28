@@ -14,7 +14,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background: #f1f5f9; }
-        canvas { max-height: 300px; }
+        canvas { max-height: 300px; width: 100%; }
     </style>
 </head>
 <body>
@@ -24,6 +24,11 @@
         <div class="card">
             <h3>Vývoj teploty (posledných 24 hodín)</h3>
             <canvas id="tempChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>Mesačné priemery</h3>
+            <div id="monthly-table">Načítavam...</div>
         </div>
 
         <div class="card">
@@ -38,32 +43,46 @@
             .then(csvData => {
                 const rows = csvData.split(/\r?\n/).filter(row => row.trim() !== "");
                 const dailyStats = {};
+                const monthlyStats = {}; // Nové pre mesiace
                 const chartLabels = [];
                 const chartData = [];
 
-                // Spracovanie dát
                 for (let i = 1; i < rows.length; i++) {
                     const [dt, temp, rain] = rows[i].split(',');
-                    const date = dt.split(' ')[0];
+                    const date = dt.split(' ')[0]; // YYYY-MM-DD
+                    const month = dt.substring(0, 7); // YYYY-MM
                     const t = parseFloat(temp);
 
+                    // Denné štatistiky
                     if (!dailyStats[date]) dailyStats[date] = { sum: 0, count: 0 };
                     dailyStats[date].sum += t;
                     dailyStats[date].count += 1;
 
-                    // Iba posledných 24 hodín pre graf
+                    // Mesačné štatistiky
+                    if (!monthlyStats[month]) monthlyStats[month] = { sum: 0, count: 0 };
+                    monthlyStats[month].sum += t;
+                    monthlyStats[month].count += 1;
+
+                    // Graf (posledných 24 hodín)
                     if (i > rows.length - 25) {
                         chartLabels.push(dt.split(' ')[1].substring(0,5));
                         chartData.push(t);
                     }
                 }
 
-                // Vykreslenie tabuľky
-                let html = '<table><tr><th>Dátum</th><th>Priemer (°C)</th></tr>';
-                Object.keys(dailyStats).sort().reverse().forEach(d => {
-                    html += `<tr><td>${d}</td><td>${(dailyStats[d].sum / dailyStats[d].count).toFixed(1)}</td></tr>`;
+                // Vykreslenie mesačnej tabuľky
+                let mHtml = '<table><tr><th>Mesiac</th><th>Priemer (°C)</th></tr>';
+                Object.keys(monthlyStats).sort().reverse().forEach(m => {
+                    mHtml += `<tr><td>${m}</td><td>${(monthlyStats[m].sum / monthlyStats[m].count).toFixed(1)}</td></tr>`;
                 });
-                document.getElementById('summary-table').innerHTML = html + '</table>';
+                document.getElementById('monthly-table').innerHTML = mHtml + '</table>';
+
+                // Vykreslenie dennej tabuľky
+                let dHtml = '<table><tr><th>Dátum</th><th>Priemer (°C)</th></tr>';
+                Object.keys(dailyStats).sort().reverse().forEach(d => {
+                    dHtml += `<tr><td>${d}</td><td>${(dailyStats[d].sum / dailyStats[d].count).toFixed(1)}</td></tr>`;
+                });
+                document.getElementById('summary-table').innerHTML = dHtml + '</table>';
 
                 // Vykreslenie grafu
                 new Chart(document.getElementById('tempChart'), {
