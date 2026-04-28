@@ -1,28 +1,21 @@
 name: Zber pocasia
 on:
   schedule:
-    - cron: '0 * * * *' # Spustí sa každú hodinu
-  workflow_dispatch: # Umožňuje spustiť skript ručne tlačidlom
-
+    - cron: '0 22 * * *' 
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Dôležité: povoľuje zapisovať späť do repozitára
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run script
+      - name: Checkout repozitara
+        uses: actions/checkout@v3
+      - name: Instalacia kniznic
+        run: pip install pandas requests
+      - name: Spustenie skriptu
         run: python main.py
-      - name: Commit and push changes
+      - name: Ulozenie zmien
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add data.csv
-          git commit -m "Aktualizácia dát o počasí"
-          git push
+          git add weather_daily.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Aktualizacia denneho priemeru" && git push)
