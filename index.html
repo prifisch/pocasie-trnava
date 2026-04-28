@@ -11,116 +11,91 @@
         .container { max-width: 900px; margin: 0 auto; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h1 { text-align: center; color: #1e293b; }
-        h3 { margin-top: 0; color: #475569; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background: #f1f5f9; }
         canvas { max-height: 300px; width: 100%; }
-        .error { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Počasie v Trnave</h1>
-        
         <div class="card">
             <h3>Vývoj teploty (posledných 24 hodín)</h3>
             <canvas id="tempChart"></canvas>
         </div>
-
         <div class="card">
             <h3>Mesačné priemery</h3>
-            <div id="monthly-table">Načítavam dáta...</div>
+            <div id="monthly-table">Načítavam...</div>
         </div>
-
         <div class="card">
             <h3>Denné priemery</h3>
-            <div id="summary-table">Načítavam dáta...</div>
+            <div id="summary-table">Načítavam...</div>
         </div>
     </div>
 
     <script>
         fetch('data.csv')
-            .then(response => {
-                if (!response.ok) throw new Error("Súbor data.csv sa nepodarilo načítať");
-                return response.text();
-            })
+            .then(response => response.text())
             .then(csvData => {
                 const rows = csvData.split(/\r?\n/).filter(row => row.trim() !== "");
-                
-                // Ak je súbor prázdny alebo obsahuje len hlavičku
-                if (rows.length <= 1) {
-                    document.getElementById('summary-table').innerHTML = "Žiadne dáta na zobrazenie.";
-                    return;
-                }
-
                 const dailyStats = {};
                 const monthlyStats = {};
                 const chartLabels = [];
                 const chartData = [];
 
-                // i = 1 preskakuje hlavičku CSV
                 for (let i = 1; i < rows.length; i++) {
                     const columns = rows[i].split(',');
-                    
-                    // Bezpečnostná poistka: skontroluj, či riadok má aspoň 2 stĺpce
-                    if (columns.length < 2) continue;
+                    if (columns.length < 2) continue; // Preskoč nekompletné riadky
 
-                    const dt = columns[0]; // Dátum a čas
-                    const temp = parseFloat(columns[1]); // Teplota
-                    
-                    if (!dt || isNaN(temp)) continue; // Ak dáta chýbajú, preskoč
+                    const dt = columns[0];
+                    const temp = parseFloat(columns[1]);
 
-                    const date = dt.split(' ')[0]; // YYYY-MM-DD
-                    const month = dt.substring(0, 7); // YYYY-MM
+                    // Bezpečná analýza času
+                    const parts = dt.split(' ');
+                    const datePart = parts[0]; // YYYY-MM-DD
+                    const timePart = (parts.length > 1) ? parts[1].substring(0, 5) : "00:00"; // Zabezpečené substring
 
-                    // Denné štatistiky
-                    if (!dailyStats[date]) dailyStats[date] = { sum: 0, count: 0 };
-                    dailyStats[date].sum += temp;
-                    dailyStats[date].count += 1;
+                    // Denné/Mesačné štatistiky
+                    if (!dailyStats[datePart]) dailyStats[datePart] = { sum: 0, count: 0 };
+                    dailyStats[datePart].sum += temp;
+                    dailyStats[datePart].count += 1;
 
-                    // Mesačné štatistiky
-                    if (!monthlyStats[month]) monthlyStats[month] = { sum: 0, count: 0 };
-                    monthlyStats[month].sum += temp;
-                    monthlyStats[month].count += 1;
+                    const monthPart = datePart.substring(0, 7);
+                    if (!monthlyStats[monthPart]) monthlyStats[monthPart] = { sum: 0, count: 0 };
+                    monthlyStats[monthPart].sum += temp;
+                    monthlyStats[monthPart].count += 1;
 
-                    // Graf (posledných 24 hodín)
+                    // Graf - posledných 24 záznamov
                     if (i > rows.length - 25) {
-                        chartLabels.push(dt.split(' ')[1].substring(0,5));
+                        chartLabels.push(timePart);
                         chartData.push(temp);
                     }
                 }
 
-                // Vykreslenie mesačnej tabuľky
+                // Vykreslenie...
                 let mHtml = '<table><tr><th>Mesiac</th><th>Priemer (°C)</th></tr>';
                 Object.keys(monthlyStats).sort().reverse().forEach(m => {
-                    const avg = (monthlyStats[m].sum / monthlyStats[m].count).toFixed(1);
-                    mHtml += `<tr><td>${m}</td><td>${avg}</td></tr>`;
+                    mHtml += `<tr><td>${m}</td><td>${(monthlyStats[m].sum / monthlyStats[m].count).toFixed(1)}</td></tr>`;
                 });
                 document.getElementById('monthly-table').innerHTML = mHtml + '</table>';
 
-                // Vykreslenie dennej tabuľky
                 let dHtml = '<table><tr><th>Dátum</th><th>Priemer (°C)</th></tr>';
                 Object.keys(dailyStats).sort().reverse().forEach(d => {
-                    const avg = (dailyStats[d].sum / dailyStats[d].count).toFixed(1);
-                    dHtml += `<tr><td>${d}</td><td>${avg}</td></tr>`;
+                    dHtml += `<tr><td>${d}</td><td>${(dailyStats[d].sum / dailyStats[d].count).toFixed(1)}</td></tr>`;
                 });
                 document.getElementById('summary-table').innerHTML = dHtml + '</table>';
 
-                // Vykreslenie grafu
                 new Chart(document.getElementById('tempChart'), {
                     type: 'line',
                     data: {
                         labels: chartLabels,
-                        datasets: [{ label: 'Teplota (°C)', data: chartData, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.3 }]
+                        datasets: [{ label: 'Teplota (°C)', data: chartData, borderColor: '#2563eb', tension: 0.3 }]
                     },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
             })
-            .catch(error => {
-                console.error("Chyba:", error);
-                document.getElementById('summary-table').innerHTML = `<span class="error">Chyba pri spracovaní dát: ${error.message}</span>`;
-            });
+            .catch(err => console.error("Chyba v kóde:", err));
     </script>
 </body>
 </html>
