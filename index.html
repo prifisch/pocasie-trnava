@@ -2,73 +2,78 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Počasie v Trnave</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 40px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        h2 { border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #334155; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { text-align: center; color: #1e293b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; }
+        canvas { max-height: 300px; }
     </style>
 </head>
 <body>
-    <h1>Počasie v Trnave</h1>
+    <div class="container">
+        <h1>Počasie v Trnave</h1>
+        
+        <div class="card">
+            <h3>Vývoj teploty (posledných 24 hodín)</h3>
+            <canvas id="tempChart"></canvas>
+        </div>
 
-    <h2>Denný priemer</h2>
-    <div id="summary-table">Načítavam priemery...</div>
-
-    <h2>Hodinový záznam (surové dáta)</h2>
-    <div id="details-table">Načítavam záznamy...</div>
+        <div class="card">
+            <h3>Denné priemery</h3>
+            <div id="summary-table">Načítavam...</div>
+        </div>
+    </div>
 
     <script>
         fetch('data.csv')
             .then(response => response.text())
             .then(csvData => {
-                const rows = csvData.split('\n').filter(row => row.trim() !== "");
+                const rows = csvData.split(/\r?\n/).filter(row => row.trim() !== "");
                 const dailyStats = {};
-                const allRows = [];
+                const chartLabels = [];
+                const chartData = [];
 
-                // 1. Spracovanie dát
+                // Spracovanie dát
                 for (let i = 1; i < rows.length; i++) {
-                    const columns = rows[i].split(',');
-                    const dateTime = columns[0];
-                    const temp = parseFloat(columns[1]);
-                    const date = dateTime.split(' ')[0];
+                    const [dt, temp, rain] = rows[i].split(',');
+                    const date = dt.split(' ')[0];
+                    const t = parseFloat(temp);
 
-                    // Uloženie pre surový výpis
-                    allRows.push({ date: dateTime, temp: columns[1], rain: columns[2] });
-
-                    // Výpočet priemeru
                     if (!dailyStats[date]) dailyStats[date] = { sum: 0, count: 0 };
-                    dailyStats[date].sum += temp;
+                    dailyStats[date].sum += t;
                     dailyStats[date].count += 1;
+
+                    // Iba posledných 24 hodín pre graf
+                    if (i > rows.length - 25) {
+                        chartLabels.push(dt.split(' ')[1].substring(0,5));
+                        chartData.push(t);
+                    }
                 }
 
-                // 2. Vykreslenie Tabuľky priemerov
-                let summaryHtml = '<table><thead><tr><th>Dátum</th><th>Priemerná teplota (°C)</th></tr></thead><tbody>';
-                Object.keys(dailyStats).sort().reverse().forEach(date => {
-                    const avg = (dailyStats[date].sum / dailyStats[date].count).toFixed(1);
-                    summaryHtml += `<tr><td>${date}</td><td>${avg}</td></tr>`;
+                // Vykreslenie tabuľky
+                let html = '<table><tr><th>Dátum</th><th>Priemer (°C)</th></tr>';
+                Object.keys(dailyStats).sort().reverse().forEach(d => {
+                    html += `<tr><td>${d}</td><td>${(dailyStats[d].sum / dailyStats[d].count).toFixed(1)}</td></tr>`;
                 });
-                summaryHtml += '</tbody></table>';
-                document.getElementById('summary-table').innerHTML = summaryHtml;
+                document.getElementById('summary-table').innerHTML = html + '</table>';
 
-                // 3. Vykreslenie Tabuľky detailov
-                let detailHtml = '<table><thead><tr><th>Dátum a čas</th><th>Teplota (°C)</th><th>Zrážky (mm)</th></tr></thead><tbody>';
-                allRows.reverse().forEach(row => {
-                    // Vytvoríme objekt dátum a povieme mu, že vstupný čas je UTC (pridaním 'Z')
-                    const dateObj = new Date(row.date.replace(' ', 'T') + 'Z');
-                    
-                    // Prevedieme na čitateľný lokálny formát
-                    const localDateTime = dateObj.toLocaleString('sk-SK', { 
-                        year: 'numeric', month: '2-digit', day: '2-digit', 
-                        hour: '2-digit', minute: '2-digit' 
-                    });
-                
-                    detailHtml += `<tr><td>${localDateTime}</td><td>${row.temp}</td><td>${row.rain}</td></tr>`;
+                // Vykreslenie grafu
+                new Chart(document.getElementById('tempChart'), {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{ label: 'Teplota (°C)', data: chartData, borderColor: '#2563eb', tension: 0.3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
-                detailHtml += '</tbody></table>';
-                document.getElementById('details-table').innerHTML = detailHtml;
             });
     </script>
 </body>
