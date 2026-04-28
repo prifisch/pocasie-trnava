@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <title>Počasie v Trnave</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Aktuálne namerané počasie v Trnave</h1>
+    <div id="table-container">Načítavam dáta...</div>
+
+    <script>
+        fetch('data.csv')
+            .then(response => response.text())
+            .then(data => {
+                const rows = data.split('\n').filter(row => row.trim() !== "");
+                let html = '<table>';
+                rows.forEach((row, index) => {
+                    const columns = row.split(',');
+                    html += index === 0 ? '<thead><tr>' : '<tr>';
+                    columns.forEach(col => {
+                        html += index === 0 ? `<th>${col}</th>` : `<td>${col}</td>`;
+                    });
+                    html += index === 0 ? '</tr></thead><tbody>' : '</tr>';
+                });
+                html += '</tbody></table>';
+                document.getElementById('table-container').innerHTML = html;
+            });
+    </script>
+</body>
+</html>
