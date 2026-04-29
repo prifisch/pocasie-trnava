@@ -6,22 +6,26 @@
     <title>Počasie v Trnave</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --primary: #2563eb; }
+        :root { --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --primary: #2563eb; --secondary: #94a3b8; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
         
-        header { margin-bottom: 30px; }
+        header { margin-bottom: 30px; text-align: center; }
         h1 { margin: 0; font-size: 28px; color: #1e293b; }
         .location { font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
 
         /* Grid pre mesačné karty */
         .months-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        
+        /* Štýl pre každú mesačnú kartu */
         .month-card { background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        
+        .card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
         .month-title { font-size: 18px; font-weight: bold; margin: 0; }
-        .month-avg { font-size: 24px; color: var(--primary); font-weight: bold; margin: 10px 0 20px 0; }
-        
-        canvas { width: 100% !important; height: 150px !important; }
+        .month-avg { font-size: 24px; color: var(--primary); font-weight: bold; }
+        .avg-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; display: block; text-align: right; }
+
+        /* Štýl pre graf */
+        canvas { width: 100% !important; height: 160px !important; }
     </style>
 </head>
 <body>
@@ -62,7 +66,8 @@
                     monthlyData[key] = { labels: [], values: [], sum: 0, count: 0 };
                 }
 
-                monthlyData[key].labels.push(d); // Deň v mesiaci
+                // Pridáme deň ako popis osi X (skrátený formát)
+                monthlyData[key].labels.push(d); 
                 monthlyData[key].values.push(avg);
                 monthlyData[key].sum += avg;
                 monthlyData[key].count += 1;
@@ -70,55 +75,83 @@
 
             // 2. Vykreslenie kariet
             const container = document.getElementById('months-container');
-            container.innerHTML = '';
+            container.innerHTML = ''; // Vyčistiť text "Načítavam..."
 
+            // Prechádzame mesiace v obrátenom poradí (najnovšie hore)
             Object.keys(monthlyData).sort().reverse().forEach(key => {
                 const [y, mNum] = key.split('-');
                 const monthName = monthNames[parseInt(mNum) - 1];
                 const data = monthlyData[key];
+                
+                // Výpočet priemernej teploty za mesiac
                 const avg = (data.sum / data.count).toFixed(1);
 
-                // Vytvorenie HTML karty
+                // Vytvorenie HTML štruktúry karty
                 const card = document.createElement('div');
                 card.className = 'month-card';
                 card.innerHTML = `
-                    <div class="month-title">${monthName} ${y}</div>
-                    <div class="month-avg">${avg}°C</div>
+                    <div class="card-header">
+                        <div class="month-title">${monthName} ${y}</div>
+                        <div>
+                            <div class="month-avg">${avg}°C</div>
+                            <span class="avg-label">mesačný priemer</span>
+                        </div>
+                    </div>
                     <canvas id="chart-${key}"></canvas>
                 `;
                 container.appendChild(card);
 
-                // 3. Vykreslenie grafu pre túto konkrétnu kartu
+                // 3. Vykreslenie podrobného grafu pre túto konkrétnu kartu
                 const ctx = document.getElementById(`chart-${key}`).getContext('2d');
+                
+                // Vytvorenie gradientu (mäkká výplň pod čiarou)
+                const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+                gradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+                gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+
                 new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: data.labels,
                         datasets: [{
                             data: data.values,
-                            borderColor: '#2563eb',
-                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderColor: '#2563eb', // Sýta modrá čiara
+                            backgroundColor: gradient, // Použitie gradientu
                             fill: true,
-                            tension: 0.3,
+                            tension: 0.3, // Vyhladená krivka
                             borderWidth: 2,
-                            pointRadius: 0
+                            pointRadius: 0 // Skrytie bodiek
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        plugins: {
+                            legend: { display: false }, // Skrytie legendy
+                            tooltip: { // Zobrazíme deň a teplotu pri hoveri
+                                callbacks: {
+                                    label: (context) => ` ${context.raw}°C`
+                                }
+                            }
+                        },
                         scales: {
-                            x: { display: false },
-                            y: { display: true, ticks: { font: { size: 10 } } }
+                            x: {
+                                grid: { display: false }, // Skrytie vertikálnych čiar
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            },
+                            y: {
+                                grid: { color: '#f1f5f9' },
+                                border: { dash: [4, 4] }, // Bodkované horizontálne čiary
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
                         }
                     }
                 });
             });
         })
         .catch(err => {
-            document.getElementById('months-container').innerText = "Chyba pri načítaní dát.";
-            console.error(err);
+            document.getElementById('months-container').innerText = "Chyba pri načítaní dát. Skontrolujte súbor weather_daily.csv.";
+            console.error("Chyba:", err);
         });
 </script>
 
