@@ -44,7 +44,7 @@ def main():
     if os.path.exists(FILENAME):
         df = pd.read_csv(FILENAME)
         # Ak už záznam pre dnešok existuje, prepíšeme ho
-        df = df[df['Datum'] != today]
+        df = df[df['date'] != today]
         df = pd.concat([df, new_entry]).sort_values('Datum')
     else:
         df = new_entry
