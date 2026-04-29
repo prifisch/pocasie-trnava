@@ -12,6 +12,10 @@
         
         h2 { margin-top: 40px; font-size: 20px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
         
+        /* Štýl pre výber roku */
+        #year-select { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; border: 2px solid #e2e8f0; background: white; cursor: pointer; margin-bottom: 20px; }
+        #year-select:focus { outline: none; border-color: var(--primary); }
+
         .section-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
         
         .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
@@ -20,12 +24,10 @@
         
         .card-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
         .card-value { font-size: 20px; color: var(--primary); font-weight: bold; }
-        .chart-container { height: 60px; margin-top: 10px; }
 
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         th { background: #f1f5f9; padding: 15px; text-align: left; }
         td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; }
-        tr:hover { background: #f8fafc; }
     </style>
 </head>
 <body>
@@ -34,7 +36,9 @@
     <header><h1>Historické počasie</h1></header>
 
     <h2>1. Vyber rok</h2>
-    <div id="years-container" class="section-grid"></div>
+    <select id="year-select">
+        <option value="">-- Zvoľ rok zo zoznamu --</option>
+    </select>
 
     <div id="months-section" style="display: none;">
         <h2>2. Vyber mesiac</h2>
@@ -52,12 +56,12 @@
 
 <script>
     const monthNames = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"];
-    let dataTree = {}; // Hlavná dátová štruktúra
+    let dataTree = {};
 
     fetch('weather_daily.csv')
         .then(res => res.text())
         .then(csv => {
-            const rows = csv.split('\n').slice(1); // Preskoč hlavičku
+            const rows = csv.split('\n').slice(1);
             rows.forEach(row => {
                 const cols = row.split(',');
                 if (cols.length < 5) return;
@@ -71,18 +75,27 @@
                 dataTree[y].months[m].temps.push(avg);
                 dataTree[y].temps.push(avg);
             });
-            renderYears();
+            initYearDropdown();
         });
 
-    function renderYears() {
-        const container = document.getElementById('years-container');
+    function initYearDropdown() {
+        const select = document.getElementById('year-select');
         Object.keys(dataTree).sort().reverse().forEach(year => {
-            const avg = (dataTree[year].temps.reduce((a, b) => a + b, 0) / dataTree[year].temps.length).toFixed(1);
-            const card = createCard(year, `${avg}°C`, () => {
-                highlightSelection(container, card);
-                renderMonths(year);
-            });
-            container.appendChild(card);
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            select.appendChild(option);
+        });
+
+        // Event listener pre zmenu výberu
+        select.addEventListener('change', (e) => {
+            const selectedYear = e.target.value;
+            if (selectedYear) {
+                renderMonths(selectedYear);
+            } else {
+                document.getElementById('months-section').style.display = 'none';
+                document.getElementById('days-section').style.display = 'none';
+            }
         });
     }
 
